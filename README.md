@@ -2,7 +2,7 @@
 
     将自动爬虫的结果判断是否属于hooks，属于则入库，并不断抓取url爬啊爬。
 
-![](http://7xiw31.com1.z0.glb.clouddn.com/4trefds.png)
+![](http://7xiw31.com1.z0.glb.clouddn.com/4rfedsxz.png)
 
 ```
 AutoHookSpider
@@ -22,3 +22,4 @@ AutoHookSpider
 3. usage: python main.py {Options} [ google.com,twitter.com,facebook.com | -t 20 ]
 4. 或者直接`python main.py`会直接在hooks.txt抽取(thread_cnt)个入口域名。
 
+![](http://7xiw31.com1.z0.glb.clouddn.com/4trefds.png)
