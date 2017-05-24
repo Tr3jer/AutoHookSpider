@@ -35,7 +35,7 @@ class autoHookSpider:
 					continue
 
 				print '[{}] {}'.format(r.status_code,r.url)
-				tags = BeautifulSoup(r.content)
+				tags = BeautifulSoup(r.content,"lxml")
 
 				for tag in tags.find_all('a'):
 					try:
