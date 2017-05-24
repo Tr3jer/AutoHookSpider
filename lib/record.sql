@@ -1,0 +1,14 @@
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+DROP TABLE IF EXISTS `hooks_record`;
+CREATE TABLE `hooks_record` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `domain` varchar(100) NOT NULL,
+  `ip` text NOT NULL,
+  `port` VARCHAR(10) DEFAULT NULL,
+  `record_time` varchar(30) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+SET FOREIGN_KEY_CHECKS = 1;

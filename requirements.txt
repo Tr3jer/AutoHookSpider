@@ -1,0 +1,4 @@
+bs4==0.0.1
+dnspython==1.15.0
+MySQL-python==1.2.5
+requests==2.13.0
