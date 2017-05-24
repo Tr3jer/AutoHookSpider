@@ -2,6 +2,8 @@
 
     将自动爬虫的结果判断是否属于hooks，属于则入库，并不断抓取url爬啊爬。
 
+    <img src="http://7xiw31.com1.z0.glb.clouddn.com/4trefds.png">
+
 ```
 AutoHookSpider
 ├── LICENSE
