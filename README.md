@@ -12,7 +12,7 @@ AutoHookSpider
 ├── lib
 │   ├── __init__.py
 │   ├── common.py   #琐碎功能
-│   └── record.sql  #先在Mysql创建这个表
+│   └── record.sql  #先在Mysql创建这个表，并改下common.py数据库连接
 ├── main.py #主程序
 └── requirements.txt
 ```
