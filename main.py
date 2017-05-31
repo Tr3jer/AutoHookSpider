@@ -2,25 +2,44 @@
 # -*- encoding: utf-8 -*-
 #__author__ == Tr3jer_CongRong
 
-import sys
+import requests
+import urlparse
+import hashlib
+import re
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
 import time
 import Queue
 import random
-import requests
 import optparse
 import threading
 from bs4 import BeautifulSoup
+import bs4
+
 from lib.common import port,host,domain_db
 
 class autoHookSpider:
 	def __init__(self,options):
 		self.STOP_ME = False
 		self.q = Queue.Queue()
+		self.url_hashs = []
 		self.lock = threading.Lock()
 		self.entrances,self.hooks = [],[]
-		self.domain_db = domain_db().run()
+		domain_do = domain_db(options.dbname)
+		if options.install == "Y":
+			domain_do.dbname = ""
+			domain_do.__init_connect__()
+
+			if not domain_do.install(newdbname=options.dbname):
+				print "[+] Install failed, You have installed successfully."
+			else:
+				print "[+] Install AutoHookSpider Successfull."
+		domain_do.__init_connect__()
+
+		self.domain_db = domain_do.run()
 		self.thread_cnt = options.thread_cnt
-		self.hooks = [i.strip() for i in open('hooks.txt')]
+		self.hooks = [i.strip() for i in open(options.hookfile)]
 		self.header = {
 					"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36"
 				}
@@ -35,6 +54,7 @@ class autoHookSpider:
 					continue
 
 				print '[{}] {}'.format(r.status_code,r.url)
+
 				tags = BeautifulSoup(r.content,"lxml")
 
 				for tag in tags.find_all('a'):
@@ -48,20 +68,30 @@ class autoHookSpider:
 
 							for i in self.hooks:
 								if targetTmp[-len(i):] == i:
-									self.q.put(tag['href'])
+
+									# clear repeat urls
+									f,h = self.clear_repeat(tag['href'])
+									if not f:
+										self.q.put(tag['href'])
+										self.lock.acquire()
+										self.url_hashs.append(h)
+										self.lock.release()
 
 									try:
 										self.lock.acquire()
 										if targetTmp not in self.domain_db and targetTmp[-len(i)-1:] == '.'+i and len(targetTmp) > len(i)+1:
 											hostTmp = host(targetTmp)
 											if hostTmp:
-												portTmp = ','.join([str(i) for i in port(targetTmp, 80,443)])
+												portTmp = ','.join([str(i) for i in port(targetTmp, 80,443,81,82,7001,8080,8081,8088,9081,9080,27017,8069,9200,11211)])
 												if not portTmp:
 													portTmp = ''
-
 												try:
 													self.domain_db.add(targetTmp)
-													domain_db().insert(targetTmp,','.join(hostTmp),portTmp)
+													title = self.get_title(tag['href'])
+													domain_do = domain_db(options.dbname)
+													domain_do.__init_connect__()
+													domain_do.insert(targetTmp,','.join(hostTmp),portTmp,title)
+
 												except:
 													pass
 									except:
@@ -73,6 +103,41 @@ class autoHookSpider:
 						pass
 			except:
 				pass
+
+	def clear_repeat(self, url):
+		uri = urlparse.urlparse(url)
+
+		sq = ""
+		for match in re.finditer(r"((\A|[?&])(?P<parameter>[^_]\w*)=)(?P<value>[^&#]+)", url):
+			sq = sq + match.group(1)
+
+		order = uri.netloc + uri.path + sq
+		hash = hashlib.md5(order).hexdigest()
+
+		if hash in self.url_hashs:
+			return True, ""
+		else:
+			return False, hash
+
+	def get_title(self, url):
+
+		try:
+			headers = {
+				'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2146.0 Safari/537.36',
+				'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+				'Referer': url,
+			}
+			title_url =  url.split('/')[0] + "//" +url.split('/')[2]
+
+			r = requests.get(url=title_url, headers=headers, timeout=3, verify=False, allow_redirects=True)
+
+			html = bs4.BeautifulSoup(r.text.encode(str(r.encoding)), 'html.parser')
+
+			print "[+] %s %s " % (url, html.title.text)
+			return html.title.text
+
+		except Exception, e:
+			return ""
 
 	def reSelect(self, domain):
 		newdomain = random.sample(self.hooks, 1)[0]
@@ -92,6 +157,9 @@ class autoHookSpider:
 				self.q.put('http://{}'.format(i))
 		else:
 			print '[+] Choose Entrances Domain ing ...'
+			if len(self.hooks) < self.thread_cnt:
+				self.thread_cnt = len(self.hooks)
+
 			self.entrances = random.sample(self.hooks,self.thread_cnt)
 			for i in self.entrances:
 				if not port(i,80):
@@ -105,16 +173,17 @@ class autoHookSpider:
 			t = threading.Thread(target=self.req)
 			t.setDaemon(True)
 			t.start()
+			# t.join()
 
 		while True:
 			if threading.activeCount() <= 1:
 				break
 			else:
 				try:
-					time.sleep(0.1)
+					time.sleep(1.5)
+
 				except KeyboardInterrupt:
 					self.STOP_ME = True
-
 
 if __name__ == '__main__':
 	intro = '''
@@ -135,6 +204,9 @@ if __name__ == '__main__':
 	print intro
 	parser = optparse.OptionParser('usage: python main.py {Options} [ google.com,twitter.com,facebook.com | -t 20 ]')
 	parser.add_option('-t', '--Thread', dest='thread_cnt', help='Num Of Scan Threads , 20 By Default', default=20,type=int, metavar='20')
+	parser.add_option('-f', '--hookfile', dest='hookfile', help='choose your hooks file', default="hooks.txt")
+	parser.add_option('-d', '--dbname', dest='dbname', help='choose your database for Record Log ,default: AutoHookSpider', default="AutoHookSpider")
+	parser.add_option('-i', '--install', dest='install', help='install database and table.', default="N")
 
 	(options, args) = parser.parse_args()
 
@@ -142,10 +214,5 @@ if __name__ == '__main__':
 		mainRun = autoHookSpider(options)
 		mainRun.run(args[0])
 	else:
-		rand = raw_input('Random Select Entrances From Hooks.txt?[Y/N]')
-		if rand.lower() == 'y':
-			mainRun = autoHookSpider(options)
-			mainRun.run()
-		else:
-			parser.print_help()
-			sys.exit(0)
+		mainRun = autoHookSpider(options)
+		mainRun.run()
