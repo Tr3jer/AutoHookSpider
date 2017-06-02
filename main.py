@@ -114,6 +114,7 @@ class autoHookSpider:
 					time.sleep(0.1)
 				except KeyboardInterrupt:
 					self.STOP_ME = True
+					raise
 
 
 if __name__ == '__main__':
